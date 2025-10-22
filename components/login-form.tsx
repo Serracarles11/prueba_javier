@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 import { GalleryVerticalEnd } from "lucide-react";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-// Cliente Supabase en cliente (anon key)
+// Cliente Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -33,32 +33,20 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [records, setRecords] = useState<LoginRecord[]>([]);
+  const [userRecord, setUserRecord] = useState<LoginRecord | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  async function fetchRecords() {
-    const { data, error } = await supabase
-      .from("logins")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) {
-      setErrorMsg(error.message);
-    } else {
-      setRecords((data ?? []) as LoginRecord[]);
-      setErrorMsg(null);
-    }
-  }
-
-  useEffect(() => {
-    fetchRecords();
-  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
 
-    const { error } = await supabase.from("logins").insert({ email });
+    // Insertar el nuevo registro en Supabase
+    const { data, error } = await supabase
+      .from("logins")
+      .insert({ email })
+      .select("*")
+      .single(); // Devuelve solo un registro
 
     setLoading(false);
 
@@ -67,8 +55,9 @@ export function LoginForm({
       return;
     }
 
+    // Guardar los datos insertados para mostrarlos
+    setUserRecord(data);
     setEmail("");
-    fetchRecords();
   }
 
   return (
@@ -141,21 +130,20 @@ export function LoginForm({
         </FieldGroup>
       </form>
 
-      {/* Lista de registros debajo del login */}
-      {records.length > 0 && (
+      {/* ✅ Mostrar SOLO el último registro del usuario que se acaba de registrar */}
+      {userRecord && (
         <div className="mt-6 w-full rounded-lg border bg-gray-50 p-4 text-sm">
-          <h3 className="mb-2 text-center font-semibold">Registros guardados</h3>
-          <ul className="space-y-2">
-            {records.map((r) => (
-              <li key={r.id} className="border-b border-gray-200 pb-2 last:border-none">
-                <p><strong>UUID:</strong> {r.id}</p>
-                <p><strong>Email:</strong> {r.email}</p>
-                <p>
-                  <strong>Fecha:</strong> {new Date(r.created_at).toLocaleString()}
-                </p>
-              </li>
-            ))}
-          </ul>
+          <h3 className="mb-2 text-center font-semibold">Tu registro</h3>
+          <p>
+            <strong>UUID:</strong> {userRecord.id}
+          </p>
+          <p>
+            <strong>Email:</strong> {userRecord.email}
+          </p>
+          <p>
+            <strong>Fecha:</strong>{" "}
+            {new Date(userRecord.created_at).toLocaleString()}
+          </p>
         </div>
       )}
 
